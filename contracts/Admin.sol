@@ -15,9 +15,9 @@ contract Admin is AccessControl, ReentrancyGuard{
     address public nodebitToken;
     address public rewardToken;
 
-    uint32 internal depositId;
-    uint32 internal collectionId;
+    uint16 internal collectionId;
     uint32 internal poolId;
+    uint32 internal depositId;
 
     mapping (uint => Deposit) internal deposits;
     mapping (uint => Collection) internal collections;
@@ -28,6 +28,7 @@ contract Admin is AccessControl, ReentrancyGuard{
 
     mapping (uint => mapping (address => uint)) internal collectionSharesByEntity;   //collectionId => entity => shares
     mapping (uint => mapping (address => uint)) internal poolSharesByEntity;   //collectionId => poolId => entity => shares
+    mapping (uint => uint[]) internal poolDeposits; //poolId => depositId[]
 
     mapping (uint => mapping (address => bool)) internal whitelist;
     mapping (uint => mapping (address => bool)) internal blacklist;
@@ -36,114 +37,98 @@ contract Admin is AccessControl, ReentrancyGuard{
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
     
-    function createSingleCostCollection(string calldata _name, address _relayer, IERC20 _costToken, uint256 _costAmount, uint32 _totalShares, uint _feeNumerator, uint _feeDenominator, uint32 _maxPoolCount) external onlyRole(DEFAULT_ADMIN_ROLE) returns(uint){
-        collectionId++;
-        setId(collectionId);
-        setName(collectionId, _name);
-        setRelayer(collectionId, _relayer);
-        costPairsByCollection[collectionId].push(Pair(address(_costToken), _costAmount));
-        setShares(collectionId, _totalShares, _totalShares);  //Assuming remainingShares == totalShares
-        setFee(collectionId, _feeNumerator, _feeDenominator);
-        setMaxPoolCount(collectionId, _maxPoolCount);
+    function create(string calldata _name, address _relayer, IERC20 _costToken, uint256 _costAmount, uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools) external onlyRole(DEFAULT_ADMIN_ROLE) returns(uint){
+        collections[++collectionId];
+        this.setId(collectionId);
+        this.setName(collectionId, _name);
+        this.setRelayer(collectionId, _relayer);
+        this.addCostPair(collectionId, _costToken, _costAmount);
+        this.setTotalShares(collectionId, _totalShares);
+        this.setFee(collectionId, _feeNumerator, _feeDenominator);
+        this.setMaxPools(collectionId, _maxPools);
+        return collectionId;
+    }
+    function create2(string calldata _name, address _relayer, IERC20 _costToken1, uint256 _costAmount1,IERC20 _costToken2, uint256 _costAmount2,  uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools) external onlyRole(DEFAULT_ADMIN_ROLE) returns(uint){
+        collections[++collectionId];
+        this.setId(collectionId);
+        this.setName(collectionId, _name);
+        this.setRelayer(collectionId, _relayer);
+        this.addCostPair2(collectionId, _costToken1, _costAmount1, _costToken2, _costAmount2);
+        this.setTotalShares(collectionId, _totalShares);
+        this.setFee(collectionId, _feeNumerator, _feeDenominator);
+        this.setMaxPools(collectionId, _maxPools);
         return collectionId;
     }
 
-    function activateCollection(uint32 _collectionId, uint32 collectionShareLimit, uint32 poolShareLimit, bool _isWhitelisted, bool _isBlacklisted) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
-        setShareLimits(_collectionId, collectionShareLimit, poolShareLimit);
-        setWhitelisted(_collectionId, _isWhitelisted);
-        setBlacklisted(_collectionId, _isBlacklisted);
+    function activate(uint16 _collectionId, uint16 _collectionShareLimit, uint16 _poolShareLimit, bool _isWhitelisted) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
+        this.setShareLimits(_collectionId, _collectionShareLimit, _poolShareLimit);
+        this.setWhitelisted(_collectionId, _isWhitelisted);
         poolId++;
         pools[poolId].id = poolId;
         pools[poolId].collectionId = _collectionId;
         collections[_collectionId].activePool = poolId;
         poolsByCollection[_collectionId].push(poolId);
-        collections[_collectionId].status = true;
+        this.setStatus(_collectionId, true);
         return true;
     }
 
-    function checkPoolReady(uint32 _collectionId, uint32 _poolId) internal returns (bool){
-        require(collections[_collectionId].activePool == _poolId);
-        require(collections[_collectionId].remainingShares <= 0);
-        require(pools[poolId].shareSum == collections[_collectionId].totalShares);
-        if(collections[_collectionId].maxPoolCount > 0) require(poolsByCollection[_collectionId].length < collections[_collectionId].maxPoolCount);
-        
-        poolId++;
-        pools[poolId].id = poolId;
-        pools[poolId].collectionId = _collectionId;
-
-        poolsByCollection[_collectionId].push(poolId);  //make it active pool in the collection
-        collections[_collectionId].activePool = poolId;
-
-        collections[_collectionId].remainingShares = collections[_collectionId].totalShares;    //reset the remaining shares
-        return true;
-    }
-
-    function setId(uint32 _collectionId) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setId(uint16 _collectionId) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].id = _collectionId;
     }
-    function setName(uint32 _collectionId, bytes32 _name) public onlyRole(DEFAULT_ADMIN_ROLE){
-        collections[_collectionId].name = _name;
-    }
-    function setName(uint32 _collectionId, string calldata _name) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setName(uint16 _collectionId, string calldata _name) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].name = _name.stringToBytes32();
     }
-    function setRelayer(uint32 _collectionId, address _relayer) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setRelayer(uint16 _collectionId, address _relayer) external onlyRole(DEFAULT_ADMIN_ROLE){
         grantRole(RELAYER_ROLE, _relayer);
         collections[_collectionId].relayer = _relayer;
     }
-    function setShares(uint32 _collectionId, uint32 _totalShares, uint32 _remainingShares) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setTotalShares(uint16 _collectionId, uint16 _totalShares) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].totalShares = _totalShares;
-        collections[_collectionId].remainingShares = _remainingShares;
     }
-    function setShareLimits(uint32 _collectionId, uint32 _collectionShareLimit, uint32 _poolShareLimit) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setShareLimits(uint16 _collectionId, uint16 _collectionShareLimit, uint16 _poolShareLimit) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].collectionShareLimit = _collectionShareLimit;
         collections[_collectionId].poolShareLimit = _poolShareLimit;
     }
-    function setWhitelisted(uint32 _collectionId, bool _whitelisted) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setWhitelisted(uint16 _collectionId, bool _whitelisted) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].isWhitelisted = _whitelisted;
     }
-    function setBlacklisted(uint32 _collectionId, bool _blacklisted) public onlyRole(DEFAULT_ADMIN_ROLE){
-        collections[_collectionId].isBlacklisted = _blacklisted;
-    }
-    function setFee (uint32 _collectionId, uint256 _numerator,  uint256 _denominator) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setFee (uint16 _collectionId, uint256 _numerator,  uint32 _denominator) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].feeNumerator = _numerator;
         collections[_collectionId].feeDenominator = _denominator;
     }
-    function setMaxPoolCount(uint32 _collectionId, uint32 _maxPoolCount) public onlyRole(DEFAULT_ADMIN_ROLE){
-        collections[_collectionId].maxPoolCount = _maxPoolCount;
+    function setMaxPools(uint16 _collectionId, uint16 _maxPools) external onlyRole(DEFAULT_ADMIN_ROLE){
+        collections[_collectionId].maxPools = _maxPools;
     }
-    function setStatus(uint32 _collectionId, bool _status) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setStatus(uint16 _collectionId, bool _status) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].status = _status;
     }
-    function setActivePool(uint32 _collectionId, uint32 _poolId) public onlyRole(DEFAULT_ADMIN_ROLE){
+    function setActivePool(uint16 _collectionId, uint32 _poolId) external onlyRole(DEFAULT_ADMIN_ROLE){
         collections[_collectionId].activePool = _poolId;
     }
-    function addCostPair(uint32 _collectionId, address _token, uint256 _amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        costPairsByCollection[_collectionId].push(Pair(_token, _amount));
+    function addCostPair(uint16 _collectionId, IERC20 _token, uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        costPairsByCollection[_collectionId].push(Pair(address(_token), _amount));
     }
-    function setCostPairs (uint32 _collectionId, Pair[] memory _costPairs) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        delete costPairsByCollection[_collectionId];
-        for(uint i = 0; i < _costPairs.length; i++){
-            costPairsByCollection[_collectionId][i] = _costPairs[i];
-        }
+    function addCostPair2(uint16 _collectionId, IERC20 _token1, uint256 _amount1, IERC20 _token2, uint256 _amount2) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        this.addCostPair(_collectionId, _token1, _amount1);
+        this.addCostPair(_collectionId, _token2, _amount2);
     }
 
-    function getCollectionById (uint32 _id) public view returns (Collection memory) {
+    function getCollectionById (uint16 _id) external view returns (Collection memory) {
         return collections[_id];
     }
-    function getPoolById (uint32 _poolId) public view returns (Pool memory) {
+    function getPoolById (uint32 _poolId) external view returns (Pool memory) {
         return pools[_poolId];
     }
-    function getDepositById (uint32 _id) public view returns (Deposit memory) {
-        return deposits[_id-1];
+    function getDepositById (uint32 _id) external view returns (Deposit memory) {
+        return deposits[_id];
     }
-    function getPoolsByCollection (uint32 _collectionId) public view returns (uint32[] memory) {
+    function getPoolsByCollection (uint16 _collectionId) external view returns (uint32[] memory) {
         return poolsByCollection[_collectionId];
     }
-    function getPoolCount(uint32 _collectionId) public view returns (uint) {
+    function getPoolCount(uint16 _collectionId) external view returns (uint) {
         return poolsByCollection[_collectionId].length;
     }
-    function getCostPairsByCollection(uint32 _collectionId) public view returns(Pair[] memory) {
+    function getCostPairsByCollection(uint16 _collectionId) external view returns(Pair[] memory) {
         return costPairsByCollection[_collectionId];
     }
 } 

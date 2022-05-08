@@ -3,17 +3,11 @@ pragma solidity ^0.8.0;
 
 struct Deposit{
     address entity;
-    uint collectionId;
-    uint poolId;
+    uint16 collectionId;
+    uint32 poolId;
     address token;
     uint256 amount;
-    uint shares;
-}
-
-struct Fee{
-    uint256 numerator;          //
-    uint256 denominator;        //Used only if it's a fractional number. 
-    bool isFraction;            //Is this a fractional or fixed number fee.
+    uint16 shares;
 }
 
 struct Pair{
@@ -30,27 +24,24 @@ struct Signature{
 struct Pool{
     uint32 id;
     uint32 collectionId;
-    uint[] deposits;            //Array of deposits used for thıs pool.
     Signature signature;
-    uint shareSum;
+    uint32 shareSum;
     bool isDeployed;            //Set by the relayer when the pool is processed.
 }
 
 struct Collection{
-    uint32 id;
+    uint16 id;
     bytes32 name;
     address relayer;            //An address that will process deposits. This can be an automated relayer or multi-sig address.
     uint32 activePool;
-    uint32 totalShares;           //Total number of shares the cost(s) is divided into.
-    uint32 remainingShares;       //How many shares are left to buy.
-    uint32 collectionShareLimit;    //Max shares an entity can buy in the entire Collection. 0 means unlimited.
-    uint32 poolShareLimit;          //Max shares an entity can buy in one pool. 0 means unlimited.
+    uint16 totalShares;           //Total number of shares the cost(s) is divided into.
+    uint16 collectionShareLimit;    //Max shares an entity can buy in the entire Collection. 0 means unlimited.
+    uint16 poolShareLimit;          //Max shares an entity can buy in one pool. 0 means unlimited.
     bool isWhitelisted;         //If true only whitelisted addresses can buy.
-    bool isBlacklisted;         //If true blacklisted addresses can not buy.
     bool status;                //0 => inactive, 1 => active.
-    uint feeNumerator;
-    uint feeDenominator;
-    uint maxPoolCount;          //Number of pools this collection can have. 0 means unlimited.
+    uint256 feeNumerator;
+    uint32 feeDenominator;
+    uint16 maxPools;          //Number of pools this collection can have. 0 means unlimited.
 }
 
 library Library {
