@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.7;
 
 struct Deposit{
     address entity;
@@ -24,9 +24,9 @@ struct Signature{
 struct Pool{
     uint32 id;
     uint32 collectionId;
-    Signature signature;
     uint32 shareSum;
     bool isDeployed;            //Set by the relayer when the pool is processed.
+    Signature signature;
 }
 
 struct Collection{
@@ -45,6 +45,7 @@ struct Collection{
 }
 
 library Library {
+    uint8 public constant ICI = 1; //Invalid collection id
     function calculateFee(uint256 self, uint _feeNumerator, uint _feeDenominator) internal pure returns (uint256) {
         uint256 result = 0;
         if(_feeDenominator > 0){

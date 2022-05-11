@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./Admin.sol";
@@ -8,21 +8,20 @@ import "./Stats.sol";
 contract Service is Admin, Stats, Pausable{
     using Library for *;
     event DepositReceived(uint depositId, address from, address token, uint256 depositAmount, uint poolId);
-    event PoolReady(uint32 collectionId, uint32 poolId, address relayer);
+    event PoolReady(uint32 poolId, address relayer);
 
     constructor(){
         _grantRole(DEFAULT_ADMIN_ROLE, address(this));
     }
 
     function buy(uint16 _collectionId, uint16 _shareAmount) external nonReentrant whenNotPaused{
-        require (_collectionId > 0, "Invalid collection id!");
         require (_shareAmount > 0, "Share amount must be greater than 0!");
 
         Collection storage c = collections[_collectionId];
 
         require(c.status, "Collection is not active!");
         require(costPairsByCollection[c.id].length > 0, "No pool was initiated!");
-        if(c.maxPools > 0) require(poolsByCollection[c.id].length <= c.maxPools, "Collection reached max pool count!");
+        if(c.maxPools > 0) require(poolsByCollection[c.id].length <= c.maxPools && pools[c.activePool].shareSum < c.totalShares, "Collection reached max pool count!");
         assert (pools[c.activePool].isDeployed == false);
 
         if(c.poolShareLimit > 0) require(poolSharesByEntity[c.activePool][msg.sender] <= c.poolShareLimit, "Reached max collection limit!"); //check if entity is sharelimited in the pool
@@ -36,8 +35,6 @@ contract Service is Admin, Stats, Pausable{
 
         for(uint t = 0; t < costPairsByCollection[c.id].length; t++){
             Pair storage costPair = costPairsByCollection[c.id][t];
-            require (costPair.token != address(0), "Cost address undefined!");
-            require (costPair.amount > 0, "Cost amount must be greater than 0!");
 
             uint256 netAmount = costPair.amount * _shareAmount / c.totalShares;
             uint256 feeAmount = netAmount.calculateFee(c.feeNumerator, c.feeDenominator);
@@ -65,18 +62,15 @@ contract Service is Admin, Stats, Pausable{
         poolSharesByEntity[c.activePool][msg.sender] += _shareAmount;
 
         if(pools[c.activePool].shareSum >= c.totalShares){
-            if(c.maxPools > 0) require(poolsByCollection[_collectionId].length < c.maxPools);
-            poolId++;
-            pools[poolId].id = poolId;
-            pools[poolId].collectionId = _collectionId;
-            poolsByCollection[_collectionId].push(poolId);  //make it active pool in the collection
-            collections[_collectionId].activePool = poolId;
-            pools[poolId].shareSum = collections[_collectionId].totalShares;    //reset the remaining shares
-
-            emit PoolReady(c.id, c.activePool, c.relayer);
+            emit PoolReady(c.activePool, c.relayer);
+            if(collections[_collectionId].maxPools > 0 && poolsByCollection[_collectionId].length < collections[_collectionId].maxPools) {
+                addNewPool(_collectionId);
+            }else if(collections[_collectionId].maxPools == 0){
+                addNewPool(_collectionId);
+            }
         }
     }
-    
+
     function sign(uint _poolId, bytes32 _description, bytes32 _data, bytes32 _txHash) external nonReentrant onlyRole(RELAYER_ROLE){
         require (msg.sender == collections[pools[_poolId].collectionId].relayer, "Unauthorized relayer!");
         require (_description.length > 0 && _data.length > 0, "Signature can not be empty!");
