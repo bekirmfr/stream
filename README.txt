@@ -1,4 +1,4 @@
-Nodebit, StrongBlock nodes made easy!
+Stream. Passive income for everyone.
 
 Minimum Viable Product(MVP) Description
 1. User can invest in a desired fraction of a node.
@@ -18,6 +18,9 @@ rewards, it will mint native reward tokens to Nodebit holders.
 
 Deployed Contracts on Rinkeby
 TSTRONGER: 0x4c81deeE9805916e7834a7E14ddD837277d1Fb1f
-TSTRONGBLOCK: 0xd53E16662C26DB87DB61e78714E332B8fE805961
+TSTRONGBLOCK: 0x58DB6871736E11c6755AB8cCB45a817762e80a0A
+SERVICE: 0x8CD301A50dFbE088F0F49d202E7CB91abb8b22fa
+
+RELAYER: 0xb38802e4cf5f92108822aa3540718de3ae271d00
 
 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
