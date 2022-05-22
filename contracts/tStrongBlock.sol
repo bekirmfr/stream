@@ -26,7 +26,7 @@ contract tStrongBlock {
          require  (msg.value == naasRequestingFeeInWei(), "Insufficient fee!");
          uint256 allowance = ERC20(tStronger).allowance(msg.sender, address(this));
         require(allowance >= strongFeeInWei(), "Insufficient allowance!");
-         while (isNaaS){
+         if (isNaaS){
             uint256 nodeId = nodesByEntity[msg.sender].length + 1;
             nodesByEntity[msg.sender].push(Node(nodeId, block.number, block.number));
             emit Paid (msg.sender, nodeId, false, false, block.number);

@@ -2,26 +2,26 @@
 pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./Admin.sol";
+import "./Stream.sol";
 import "./Stats.sol";
 
-contract Service is Admin, Stats, Pausable{
+contract Service is Stream, Stats, Pausable{
     using Library for *;
     event DepositReceived(uint depositId, address from, address token, uint256 depositAmount, uint poolId);
     event PoolReady(uint32 poolId, address relayer);
+    event PoolSigned(uint32 poolId, address relayer);
 
     constructor(){
         _grantRole(DEFAULT_ADMIN_ROLE, address(this));
     }
 
-    function buy(uint16 _collectionId, uint16 _shareAmount) external nonReentrant whenNotPaused{
+    function buy(uint16 _collectionId, uint16 _shareAmount) external whenNotPaused{
         require (_shareAmount > 0, "Share amount must be greater than 0!");
 
         Collection storage c = collections[_collectionId];
 
         require(c.status, "Collection is not active!");
-        require(costPairsByCollection[c.id].length > 0, "No pool was initiated!");
-        if(c.maxPools > 0) require(poolsByCollection[c.id].length <= c.maxPools && pools[c.activePool].shareSum < c.totalShares, "Collection reached max pool count!");
+        if(c.maxPools > 0) require(this.getPoolCount(_collectionId) <= c.maxPools && pools[c.activePool].shareSum < c.totalShares, "Collection reached max pool count!");
         assert (pools[c.activePool].isDeployed == false);
 
         if(c.poolShareLimit > 0) require(poolSharesByEntity[c.activePool][msg.sender] <= c.poolShareLimit, "Reached max collection limit!"); //check if entity is sharelimited in the pool
@@ -29,9 +29,8 @@ contract Service is Admin, Stats, Pausable{
 
         if(c.isWhitelisted) require(whitelist[c.id][msg.sender] == true, "Only whitelisted addresses are allowed!");
         require(blacklist[c.id][msg.sender] != true, "Blacklisted addresses are not allowed!");
-        uint32 remainingShares_ = c.totalShares - pools[c.activePool].shareSum;
-        require(remainingShares_ > 0, "No shares left!");
-        require(_shareAmount <= remainingShares_, "Share amount can not exceed available shares!");
+        require(this.getRemainingShares(_collectionId) > 0, "No shares left!");
+        require(_shareAmount <= this.getRemainingShares(_collectionId), "Share amount can not exceed available shares!");
 
         for(uint t = 0; t < costPairsByCollection[c.id].length; t++){
             Pair storage costPair = costPairsByCollection[c.id][t];
@@ -63,19 +62,31 @@ contract Service is Admin, Stats, Pausable{
 
         if(pools[c.activePool].shareSum >= c.totalShares){
             emit PoolReady(c.activePool, c.relayer);
-            if(collections[_collectionId].maxPools > 0 && poolsByCollection[_collectionId].length < collections[_collectionId].maxPools) {
-                addNewPool(_collectionId);
-            }else if(collections[_collectionId].maxPools == 0){
-                addNewPool(_collectionId);
+            bool shouldAddPool;
+            if(c.maxPools > 0 && this.getPoolCount(_collectionId) < c.maxPools) {
+                shouldAddPool = true;
+            }else if(c.maxPools == 0){
+                shouldAddPool = true;
+            }
+            if(shouldAddPool) {
+                poolId++;
+                pools[poolId].id = poolId;
+                pools[poolId].collectionId = _collectionId;
+                collections[_collectionId].activePool = poolId;
+                poolsByCollection[_collectionId].push(poolId);
             }
         }
     }
 
-    function sign(uint _poolId, bytes32 _description, bytes32 _data, bytes32 _txHash) external nonReentrant onlyRole(RELAYER_ROLE){
+    function redeem() external onlyRole(RELAYER_ROLE){
+        
+    }
+
+    function sign(uint32 _poolId, bytes32 _description, bytes32 _data, bytes32 _txHash) external onlyRole(RELAYER_ROLE){
         require (msg.sender == collections[pools[_poolId].collectionId].relayer, "Unauthorized relayer!");
         require (_description.length > 0 && _data.length > 0, "Signature can not be empty!");
-        pools[_poolId].signature.description = _description;
-        pools[_poolId].signature.data = _data;
-        pools[_poolId].signature.txHash = _txHash;
+        pools[_poolId].signature= Signature (_description, _data, _txHash);
+        pools[_poolId].isDeployed = true;
+        emit PoolSigned(_poolId, msg.sender);
     }
 }

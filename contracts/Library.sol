@@ -24,7 +24,7 @@ struct Signature{
 struct Pool{
     uint32 id;
     uint32 collectionId;
-    uint32 shareSum;
+    uint16 shareSum;
     bool isDeployed;            //Set by the relayer when the pool is processed.
     Signature signature;
 }
