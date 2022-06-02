@@ -45,7 +45,6 @@ struct Collection{
 }
 
 library Library {
-    uint8 public constant ICI = 1; //Invalid collection id
     function calculateFee(uint256 self, uint _feeNumerator, uint _feeDenominator) internal pure returns (uint256) {
         uint256 result = 0;
         if(_feeDenominator > 0){

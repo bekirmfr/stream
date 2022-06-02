@@ -9,10 +9,7 @@ contract Stream is AccessControl{
 
     bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
 
-    address public nodebitToken;
-    address public rewardToken;
-
-    uint16 internal collectionId;
+    uint16 public collectionId;
     uint32 internal poolId;
     uint32 internal depositId;
 
@@ -29,6 +26,7 @@ contract Stream is AccessControl{
 
     mapping (uint => mapping (address => bool)) internal whitelist; //collectionId => entity
     mapping (uint => mapping (address => bool)) internal blacklist; //collectionId => entity
+    
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
@@ -52,7 +50,7 @@ contract Stream is AccessControl{
         return true;
     }
     function activate(uint16 _collectionId, uint16 _collectionShareLimit, uint16 _poolShareLimit, bool _isWhitelisted) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
-        require(collections[_collectionId].status == false, "Collection already active!");
+        require(collections[_collectionId].status == false && collections[_collectionId].activePool == 0, "Collection already active!");
         this.addPool(_collectionId);
         this.set2(_collectionId, _collectionShareLimit, _poolShareLimit, _isWhitelisted, true);
         return true;
@@ -70,7 +68,6 @@ contract Stream is AccessControl{
         pools[poolId].id = poolId;
         pools[poolId].collectionId = _collectionId;
         collections[_collectionId].activePool = poolId;
-        poolsByCollection[_collectionId].push(poolId);
         return poolId;
     }
     function setRelayer(uint16 _collectionId, address _relayer) external onlyRole(DEFAULT_ADMIN_ROLE){
@@ -79,7 +76,7 @@ contract Stream is AccessControl{
     }
     function setStatus(uint16 _collectionId, bool _status) external onlyRole(DEFAULT_ADMIN_ROLE){
         if(_status == true) {
-            require(this.getPoolCount(_collectionId) > 0, "Can not activate without a pool!");
+            require(collections[_collectionId].activePool > 0, "Can not activate without a pool!");
             require(this.getCostPairs(_collectionId).length > 0, "Can not activate without a cost pair!");
         }
         collections[_collectionId].status = _status;
