@@ -3,9 +3,9 @@ Your WP should contain the following paragraphs:
 * Your Project.
     Why does the world need it?
         Stream will allow small investors to make what can not be realized alone. The platform will leverage the mass effect of small
-        investors to grant them the profit potential of big money. Our motto is "Passive income for everyone!".
+        investors to unlock the profit potential of big money. Our motto is "Passive income for everyone!".
     Does it help someone? In what way?
-        Stream will give individuals access to passive income venues that require high initial investment, or which are technically complex.
+        Stream will give individuals access to passive income venues that normally require high initial investment, or which are technically complex.
 * Problem.
     Shift the focus from crowdfunding to problem-solving.
         Passive income possibilities in the crypto industry is very restricted and generally projects have a big problem to create real value
