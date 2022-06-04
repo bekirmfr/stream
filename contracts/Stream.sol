@@ -31,13 +31,13 @@ contract Stream is AccessControl{
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function create(string calldata _name, address _relayer, IERC20 _costToken, uint256 _costAmount, uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools) external onlyRole(DEFAULT_ADMIN_ROLE) returns(uint){
+    function create(string calldata _name, address _relayer, IERC20 _costToken, uint256 _costAmount, uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools, uint32 _minDepositDuration) external onlyRole(DEFAULT_ADMIN_ROLE) returns(uint){
         collections[++collectionId];
-        this.set(collectionId, _name, _relayer, _totalShares, _feeNumerator, _feeDenominator, _maxPools);
+        this.set(collectionId, _name, _relayer, _totalShares, _feeNumerator, _feeDenominator, _maxPools, _minDepositDuration);
         this.addCostPair(collectionId, _costToken, _costAmount);
         return collectionId;
     }
-    function set(uint16 _collectionId, string calldata _name, address _relayer, uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
+    function set(uint16 _collectionId, string calldata _name, address _relayer, uint16 _totalShares, uint256 _feeNumerator, uint32 _feeDenominator, uint16 _maxPools, uint32 _minDepositDuration) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
         Collection storage c = collections[_collectionId];
         c.id =  _collectionId;
         c.name = _name.stringToBytes32();
@@ -47,6 +47,7 @@ contract Stream is AccessControl{
         c.feeNumerator = _feeNumerator;
         c.feeDenominator = _feeDenominator;
         c.maxPools = _maxPools;
+        c.minDepositDuration = _minDepositDuration;
         return true;
     }
     function activate(uint16 _collectionId, uint16 _collectionShareLimit, uint16 _poolShareLimit, bool _isWhitelisted) external onlyRole(DEFAULT_ADMIN_ROLE) returns(bool){
@@ -67,6 +68,7 @@ contract Stream is AccessControl{
         poolId++;
         pools[poolId].id = poolId;
         pools[poolId].collectionId = _collectionId;
+        pools[poolId].timestamp = block.timestamp;
         collections[_collectionId].activePool = poolId;
         return poolId;
     }
@@ -122,4 +124,4 @@ contract Stream is AccessControl{
     function getRemainingShares(uint16 _collectionId) external view returns (uint16) {
         return collections[_collectionId].totalShares - pools[collections[_collectionId].activePool].shareSum;
     }
-} 
+}

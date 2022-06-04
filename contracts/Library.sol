@@ -24,6 +24,7 @@ struct Signature{
 struct Pool{
     uint32 id;
     uint32 collectionId;
+    uint timestamp;
     uint16 shareSum;
     bool isDeployed;            //Set by the relayer when the pool is processed.
     Signature signature;
@@ -33,15 +34,16 @@ struct Collection{
     uint16 id;
     bytes32 name;
     address relayer;            //An address that will process deposits. This can be an automated relayer or multi-sig address.
-    uint32 activePool;
-    uint16 totalShares;           //Total number of shares the cost(s) is divided into.
+    uint32 activePool;          //
+    uint16 totalShares;         //Total number of shares the cost(s) is divided into.
     uint16 collectionShareLimit;    //Max shares an entity can buy in the entire Collection. 0 means unlimited.
-    uint16 poolShareLimit;          //Max shares an entity can buy in one pool. 0 means unlimited.
+    uint16 poolShareLimit;      //Max shares an entity can buy in one pool. 0 means unlimited.
     bool isWhitelisted;         //If true only whitelisted addresses can buy.
     bool status;                //0 => inactive, 1 => active.
     uint256 feeNumerator;
     uint32 feeDenominator;
-    uint16 maxPools;          //Number of pools this collection can have. 0 means unlimited.
+    uint16 maxPools;            //Number of pools this collection can have. 0 means unlimited.
+    uint32 minDepositDuration;  //The duration in seconds that needs to expire before the entity can cancel the buy
 }
 
 library Library {
